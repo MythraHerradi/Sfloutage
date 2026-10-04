@@ -11,8 +11,10 @@ jobs:
         include:
           - os: windows-latest
             artifact_name: Flouteur_Windows
+            ext: zip
           - os: ubuntu-latest
             artifact_name: Flouteur_Linux
+            ext: tar.gz
 
     runs-on: ${{ matrix.os }}
 
@@ -45,19 +47,22 @@ jobs:
       run: |
         cp best.onnx dist/FlouteurGUI/
 
-    - name: Compression du dossier en ZIP (Natif)
+    - name: Compression de l'archive (Multi-plateforme)
       shell: bash
       run: |
         cd dist
-        # On crée un tar.gz pour Linux, beaucoup plus rapide et propre
-        tar -czf ../${{ matrix.artifact_name }}.tar.gz FlouteurGUI
+        if [ "${{ matrix.ext }}" = "zip" ]; then
+          zip -r ../${{ matrix.artifact_name }}.${{ matrix.ext }} FlouteurGUI
+        else
+          tar -czf ../${{ matrix.artifact_name }}.${{ matrix.ext }} FlouteurGUI
+        fi
         cd ..
 
     - name: Sauvegarde temporaire de l'artefact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.artifact_name }}.zip
+        path: ${{ matrix.artifact_name }}.${{ matrix.ext }}
 
   release:
     needs: build
@@ -67,6 +72,9 @@ jobs:
     steps:
     - name: Téléchargement des archives construites
       uses: actions/download-artifact@v4
+      with:
+        path: .
+        merge-multiple: true
 
     - name: 🚀 Publication automatique sur GitHub Releases
       uses: softprops/action-gh-release@v2
@@ -78,7 +86,7 @@ jobs:
           - Contient l'exécutable et le modèle IA `best.onnx` intégré.
           - Téléchargez simplement l'archive correspondant à votre système (Windows ou Linux), extrayez-la et lancez l'application !
         files: |
-          Flouteur_Windows*/*
-          Flouteur_Linux*/*
-        overwrite: true
+          Flouteur_Windows.zip
+          Flouteur_Linux.tar.gz
+        overwrite_files: true
         prerelease: false
