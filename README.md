@@ -1,10 +1,10 @@
-# 🕵️ Flouteur Vidéo Pro (Sfloutage)
+# Flouteur Vidéo (Sfloutage)
 
 Un outil d'anonymisation vidéo automatique propulsé par l'IA (YOLOv8 + ONNX Runtime), doté d'une interface graphique légère et capable de conserver la piste audio originale.
 
 Conçu pour être rapide, portable et fonctionner sans configuration complexe sur le processeur (CPU) ou la carte graphique (GPU).
 
-## 🚀 Utilisation rapide (Windows & Linux)
+## Utilisation rapide (Windows & Linux)
 
 Si vous cherchez simplement à utiliser le logiciel sans toucher au code, téléchargez l'exécutable prêt à l'emploi dans l'onglet **Releases**.
 
