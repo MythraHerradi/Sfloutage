@@ -30,8 +30,8 @@ def pixelate_image(image, block_size=35):
     return cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
-def preprocess_frame(frame, input_size=(640, 640)):
-    """Prépare l'image pour le modèle ONNX de YOLOv8-seg"""
+def preprocess_frame(frame, input_size=(1024, 1024)):
+    """Prépare l'image en 1024x1024 pour correspondre exactement au modèle ONNX"""
     h, w = frame.shape[:2]
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, input_size)
