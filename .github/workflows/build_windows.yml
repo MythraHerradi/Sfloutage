@@ -38,9 +38,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install customtkinter opencv-python ultralytics onnx onnxruntime pyinstaller
 
-    - name: Compilation avec PyInstaller
+    - name: Compilation avec PyInstaller (Allégée)
       run: |
-        pyinstaller --noconsole --collect-all customtkinter --exclude-module matplotlib --exclude-module pandas --exclude-module polars --clean FlouteurGUI.py
+        pyinstaller --noconsole --collect-all customtkinter --exclude-module matplotlib --exclude-module pandas --exclude-module polars --exclude-module torch --exclude-module torchvision --clean FlouteurGUI.py
 
     - name: Intégration du modèle best.onnx dans le dossier final
       shell: bash
