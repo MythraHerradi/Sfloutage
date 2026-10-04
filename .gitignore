@@ -1,0 +1,21 @@
+# Modèles IA (trop lourds pour Git)
+*.pt
+*.onnx
+
+# Vidéos et médias
+*.mp4
+*.avi
+*.mkv
+
+# Dossiers d'entraînement lourds
+train/dataset/
+train/runs/
+train/weights/
+*.cache
+
+# Environnements et fichiers Python temporaires
+.venv/
+__pycache__/
+build/
+dist/
+*.spec
