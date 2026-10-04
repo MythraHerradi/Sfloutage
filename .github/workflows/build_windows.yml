@@ -52,7 +52,7 @@ jobs:
       run: |
         cd dist
         if [ "${{ matrix.ext }}" = "zip" ]; then
-          zip -r ../${{ matrix.artifact_name }}.${{ matrix.ext }} FlouteurGUI
+          powershell -Command "Compress-Archive -Path 'FlouteurGUI' -DestinationPath '../${{ matrix.artifact_name }}.${{ matrix.ext }}' -Force"
         else
           tar -czf ../${{ matrix.artifact_name }}.${{ matrix.ext }} FlouteurGUI
         fi
