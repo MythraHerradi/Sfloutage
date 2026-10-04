@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flouteur Vidéo Pro - Téléchargement</title>
+    <!-- Chargement des icônes FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --card-bg: #1a1d29;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --hover-blue: #2563eb;
+            --accent-orange: #f97316;
+            --hover-orange: #ea580c;
+            --github-bg: #24292f;
+            --github-hover: #1b1f24;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 50px 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .icon-header {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: -webkit-linear-gradient(45deg, #3b82f6, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        p.description {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 40px;
+        }
+
+        .buttons-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn i {
+            font-size: 1.4rem;
+            margin-right: 12px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-windows {
+            background-color: var(--accent-blue);
+        }
+        .btn-windows:hover { background-color: var(--hover-blue); }
+
+        .btn-linux {
+            background-color: var(--accent-orange);
+        }
+        .btn-linux:hover { background-color: var(--hover-orange); }
+
+        .btn-github {
+            background-color: var(--github-bg);
+            border: 1px solid #3d444d;
+        }
+        .btn-github:hover { background-color: var(--github-hover); }
+
+        /* Badge OS recommandé */
+        .badge {
+            display: none; /* Masqué par défaut, affiché par JS */
+            position: absolute;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .separator {
+            margin: 30px 0;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .features {
+            display: flex;
+            justify-content: space-around;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+        .features span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <i class="fa-solid fa-user-secret icon-header"></i>
+        <h1>Flouteur Vidéo Pro</h1>
+        <p class="description">Anonymisation automatique de vidéos par Intelligence Artificielle. Totalement hors-ligne, rapide et gratuit.</p>
+
+        <div class="buttons-grid">
+            <!-- Bouton Windows -->
+            <a href="https://github.com/MythraHerradi/Sfloutage/releases/download/latest/Flouteur_Windows.zip" class="btn btn-windows" id="btn-win">
+                <i class="fa-brands fa-windows"></i>
+                Télécharger pour Windows
+                <span class="badge" id="badge-win">Recommandé</span>
+            </a>
+
+            <!-- Bouton Linux -->
+            <a href="https://github.com/MythraHerradi/Sfloutage/releases/download/latest/Flouteur_Linux.tar.gz" class="btn btn-linux" id="btn-lin">
+                <i class="fa-brands fa-linux"></i>
+                Télécharger pour Linux
+                <span class="badge" id="badge-lin">Recommandé</span>
+            </a>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Bouton Code Source -->
+        <a href="https://github.com/MythraHerradi/Sfloutage/releases/tag/latest" class="btn btn-github" target="_blank">
+            <i class="fa-brands fa-github"></i>
+            Voir le code source / Release
+        </a>
+
+        <!-- Petits badges de fonctionnalités -->
+        <div class="features">
+            <span><i class="fa-solid fa-microchip"></i> Accélération IA</span>
+            <span><i class="fa-solid fa-shield-halved"></i> 100% Local</span>
+            <span><i class="fa-solid fa-feather"></i> Ultra-léger</span>
+        </div>
+    </div>
+
+    <!-- Script pour détecter l'OS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const platform = window.navigator.platform.toLowerCase();
+            const userAgent = window.navigator.userAgent.toLowerCase();
+
+            // Vérification de Windows
+            if (platform.includes('win') || userAgent.includes('windows')) {
+                document.getElementById('badge-win').style.display = 'block';
+                // On remonte le bouton Windows en premier
+                document.getElementById('btn-win').style.order = "-1";
+            } 
+            // Vérification de Linux
+            else if (platform.includes('linux') || userAgent.includes('linux')) {
+                document.getElementById('badge-lin').style.display = 'block';
+                // On remonte le bouton Linux en premier
+                document.getElementById('btn-lin').style.order = "-1";
+                // On place le bouton Windows en dessous de Linux
+                document.getElementById('btn-win').style.order = "1";
+            }
+        });
+    </script>
+
+</body>
+</html>
