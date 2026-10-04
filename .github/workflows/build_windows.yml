@@ -38,7 +38,7 @@ jobs:
 
     - name: Compilation avec PyInstaller
       run: |
-        pyinstaller --noconsole --collect-all customtkinter FlouteurGUI.py
+        pyinstaller --noconsole --collect-all customtkinter --exclude-module torch FlouteurGUI.py
 
     - name: 📦 Intégration du modèle best.onnx dans le dossier final
       shell: bash
