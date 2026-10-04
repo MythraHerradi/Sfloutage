@@ -1,4 +1,4 @@
-name: Générateur d'Applications (Windows & Linux)
+name: Build & Publish Release
 
 on:
   push:
@@ -10,9 +10,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: Flouteur_Windows_App
-          - os: ubuntu-20.04 # 🔥 LE SECRET EST ICI : On compile sur un vieux noyau pour une compatibilité universelle
-            artifact_name: Flouteur_Linux_App
+            artifact_name: Flouteur_Windows
+          - os: ubuntu-latest
+            artifact_name: Flouteur_Linux
 
     runs-on: ${{ matrix.os }}
 
@@ -40,8 +40,43 @@ jobs:
       run: |
         pyinstaller --noconsole --collect-all customtkinter FlouteurGUI.py
 
-    - name: Sauvegarde du logiciel compilé
+    - name: 📦 Intégration du modèle best.onnx dans le dossier final
+      shell: bash
+      run: |
+        cp best.onnx dist/FlouteurGUI/
+
+    - name: 🗜️ Compression du dossier en ZIP
+      uses: vimtor/action-zip@v1
+      with:
+        files: dist/FlouteurGUI/
+        dest: ${{ matrix.artifact_name }}.zip
+
+    - name: Sauvegarde temporaire de l'artefact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
-        path: dist/FlouteurGUI/
+        path: ${{ matrix.artifact_name }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Indispensable pour autoriser GitHub à créer la Release
+    steps:
+    - name: Téléchargement des ZIPs construits
+      uses: actions/download-artifact@v4
+
+    - name: 🚀 Publication automatique sur GitHub Releases
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "Flouteur Vidéo Pro - Dernière Version"
+        body: |
+          ### 🚀 Maintien automatique de l'application
+          - Contient l'exécutable et le modèle IA `best.onnx` intégré.
+          - Téléchargez simplement l'archive correspondant à votre système (Windows ou Linux), extrayez-la et lancez l'application !
+        files: |
+          Flouteur_Windows/*.zip
+          Flouteur_Linux/*.zip
+        overwrite: true
+        prerelease: false
