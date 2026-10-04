@@ -19,6 +19,7 @@ from pathlib import Path
 import customtkinter as ctk
 from tkinter import filedialog
 from ultralytics import YOLO
+import onnxruntime as ort
 
 # --- FONCTIONS DE TRAITEMENT VIDÉO (ARRIÈRE-PLAN) ---
 
@@ -33,10 +34,19 @@ def pixelate_image(image, block_size=35):
 
 def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
     try:
-        q.put(("status", "📦 Chargement du modèle (peut prendre 20s)..."))
+        q.put(("status", "📦 Analyse du matériel et chargement du modèle..."))
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Le fichier '{model_path}' est introuvable.")
+
+        # Détection dynamique du matériel via ONNX Runtime
+        available_providers = ort.get_available_providers()
+        if "CUDAExecutionProvider" in available_providers:
+            q.put(
+                ("status", "🚀 GPU détecté (CUDA) : Accélération matérielle active !")
+            )
+        else:
+            q.put(("status", "💻 Mode CPU : Compatibilité universelle activée."))
 
         model = YOLO(model_path, task="segment")
 
@@ -136,11 +146,9 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
                 stderr=subprocess.DEVNULL,
                 check=True,
             )
-            # Affichage du chemin complet en cas de succès
             q.put(("done", f"✅ Terminé ! Fichier dispo ici :\n{output_path}"))
         except Exception:
             os.rename(temp_video, output_path)
-            # Affichage du chemin complet même s'il manque FFmpeg
             q.put(("done", f"⚠️ Terminé (sans son). Fichier dispo ici :\n{output_path}"))
         finally:
             if os.path.exists(temp_video):
@@ -157,10 +165,8 @@ class FlouteurApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("🕵️️ Flouteur Vidéo Pro")
-        self.geometry(
-            "650x420"
-        )  # Fenêtre très légèrement agrandie pour la place du texte
+        self.title("🕵️ Flouteur Vidéo Pro")
+        self.geometry("650x420")
         self.resizable(False, False)
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -212,7 +218,6 @@ class FlouteurApp(ctk.CTk):
         self.progress_bar.set(0)
         self.progress_bar.pack(pady=10)
 
-        # Ajout du wraplength=600 pour que les chemins longs reviennent à la ligne sans casser la fenêtre
         self.lbl_status = ctk.CTkLabel(
             self, text="En attente...", font=ctk.CTkFont(size=14), wraplength=600
         )

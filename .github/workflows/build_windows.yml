@@ -34,11 +34,12 @@ jobs:
     - name: Installation des dépendances Python
       run: |
         python -m pip install --upgrade pip
+        # On installe les strictes nécessités sans les surcouches graphiques lourdes de matplotlib si non requises
         pip install customtkinter opencv-python ultralytics onnx onnxruntime pyinstaller
 
     - name: Compilation avec PyInstaller
       run: |
-        pyinstaller --noconsole --collect-all customtkinter --exclude-module torch FlouteurGUI.py
+        pyinstaller --noconsole --collect-all customtkinter --clean FlouteurGUI.py
 
     - name: 📦 Intégration du modèle best.onnx dans le dossier final
       shell: bash
