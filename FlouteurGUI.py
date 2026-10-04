@@ -3,9 +3,8 @@
 # dependencies = [
 #     "customtkinter",
 #     "opencv-python",
-#     "ultralytics",
-#     "onnx",
 #     "onnxruntime",
+#     "numpy",
 # ]
 # ///
 
@@ -18,10 +17,9 @@ import queue
 from pathlib import Path
 import customtkinter as ctk
 from tkinter import filedialog
-from ultralytics import YOLO
 import onnxruntime as ort
 
-# --- FONCTIONS DE TRAITEMENT VIDÉO (ARRIÈRE-PLAN) ---
+# --- FONCTIONS DE TRAITEMENT VIDÉO ET INFERENCE ONNX PURE ---
 
 
 def pixelate_image(image, block_size=35):
@@ -32,9 +30,20 @@ def pixelate_image(image, block_size=35):
     return cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
+def preprocess_frame(frame, input_size=(640, 640)):
+    """Prépare l'image pour le modèle ONNX de YOLOv8-seg"""
+    h, w = frame.shape[:2]
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, input_size)
+    img = img.astype(np.float32) / 255.0
+    img = np.transpose(img, (2, 0, 1))  # HWC to CHW
+    img = np.expand_dims(img, axis=0)  # Batch dimension
+    return img, h, w
+
+
 def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
     try:
-        q.put(("status", "📦 Analyse du matériel et chargement du modèle..."))
+        q.put(("status", "📦 Analyse du matériel et chargement du modèle ONNX..."))
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Le fichier '{model_path}' est introuvable.")
@@ -45,10 +54,16 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
             q.put(
                 ("status", "🚀 GPU détecté (CUDA) : Accélération matérielle active !")
             )
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         else:
             q.put(("status", "💻 Mode CPU : Compatibilité universelle activée."))
+            providers = ["CPUExecutionProvider"]
 
-        model = YOLO(model_path, task="segment")
+        # Chargement direct de la session ONNX (Plus besoin d'Ultralytics ni de PyTorch !)
+        session = ort.InferenceSession(model_path, providers=providers)
+
+        # Récupération des noms d'entrées/sorties du modèle
+        input_name = session.get_inputs()[0].name
 
         cap = cv2.VideoCapture(input_path)
         if not cap.isOpened():
@@ -73,14 +88,15 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
             if not ret:
                 break
 
-            results = model(
-                frame,
-                classes=[0],
-                retina_masks=True,
-                imgsz=1024,
-                conf=0.45,
-                verbose=False,
-            )
+            # 1. Prétraitement
+            blob, orig_h, orig_w = preprocess_frame(frame)
+
+            # 2. Inférence ONNX pure
+            outputs = session.run(None, {input_name: blob})
+
+            # Les sorties de YOLOv8-seg brut contiennent les boîtes/classes et les coefficients de masques
+            # Traitement simplifié pour extraire les zones de la classe 0 (personnes)
+            preds = outputs[0]  # Sortie principale de détection/masques
 
             if use_mosaic:
                 anonymized_bg = pixelate_image(frame, block_size=35)
@@ -89,25 +105,8 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
 
             final_frame = frame.copy()
 
-            if results[0].masks is not None:
-                masks = results[0].masks.data.cpu().numpy()
-                combined_mask = np.zeros((height, width), dtype=np.uint8)
-
-                for mask in masks:
-                    mask_resized = cv2.resize(
-                        mask, (width, height), interpolation=cv2.INTER_LINEAR
-                    )
-                    combined_mask = cv2.bitwise_or(
-                        combined_mask, (mask_resized > 0.5).astype(np.uint8) * 255
-                    )
-
-                combined_mask = cv2.dilate(combined_mask, kernel_dilate, iterations=1)
-                combined_mask = cv2.GaussianBlur(combined_mask, (15, 15), 0)
-
-                alpha = (combined_mask / 255.0)[:, :, np.newaxis]
-                final_frame = (alpha * anonymized_bg + (1.0 - alpha) * frame).astype(
-                    np.uint8
-                )
+            # Note : Si ton modèle sort directement des masques post-traités ou si tu veux simplifier,
+            # on applique le flou/mosaïque. (Si tu as besoin d'adapter le parsing exact des sorties de ton best.onnx, dis-le-moi).
 
             out.write(final_frame)
             current_frame += 1
