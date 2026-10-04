@@ -48,7 +48,6 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Le fichier '{model_path}' est introuvable.")
 
-        # Détection dynamique du matériel via ONNX Runtime
         available_providers = ort.get_available_providers()
         if "CUDAExecutionProvider" in available_providers:
             q.put(
@@ -59,10 +58,7 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
             q.put(("status", "💻 Mode CPU : Compatibilité universelle activée."))
             providers = ["CPUExecutionProvider"]
 
-        # Chargement direct de la session ONNX (Plus besoin d'Ultralytics ni de PyTorch !)
         session = ort.InferenceSession(model_path, providers=providers)
-
-        # Récupération des noms d'entrées/sorties du modèle
         input_name = session.get_inputs()[0].name
 
         cap = cv2.VideoCapture(input_path)
@@ -88,15 +84,15 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
             if not ret:
                 break
 
-            # 1. Prétraitement
+            # 1. Prétraitement (1024x1024)
             blob, orig_h, orig_w = preprocess_frame(frame)
 
-            # 2. Inférence ONNX pure
+            # 2. Inférence ONNX
             outputs = session.run(None, {input_name: blob})
 
-            # Les sorties de YOLOv8-seg brut contiennent les boîtes/classes et les coefficients de masques
-            # Traitement simplifié pour extraire les zones de la classe 0 (personnes)
-            preds = outputs[0]  # Sortie principale de détection/masques
+            # YOLOv8-seg génère 2 sorties : [prédictions_brutes, masques_prototypes]
+            preds = np.squeeze(outputs[0]).T  # Shape: (21504, 37)
+            protos = np.squeeze(outputs[1])  # Shape: (32, 256, 256)
 
             if use_mosaic:
                 anonymized_bg = pixelate_image(frame, block_size=35)
@@ -105,8 +101,82 @@ def process_video_backend(input_path, output_path, model_path, use_mosaic, q):
 
             final_frame = frame.copy()
 
-            # Note : Si ton modèle sort directement des masques post-traités ou si tu veux simplifier,
-            # on applique le flou/mosaïque. (Si tu as besoin d'adapter le parsing exact des sorties de ton best.onnx, dis-le-moi).
+            # 3. Filtrage par score de confiance (> 45%)
+            conf_scores = preds[:, 4]
+            valid_idx = conf_scores > 0.45
+            valid_preds = preds[valid_idx]
+
+            if len(valid_preds) > 0:
+                # Extraction des données
+                boxes = valid_preds[:, :4]
+                scores = valid_preds[:, 4].tolist()
+                mask_coeffs = valid_preds[:, 5:]  # Les 32 coefficients de silhouette
+
+                # Formatage [x, y, w, h] pour l'algorithme NMS d'OpenCV
+                boxes_cv2 = np.column_stack(
+                    (
+                        boxes[:, 0] - boxes[:, 2] / 2,
+                        boxes[:, 1] - boxes[:, 3] / 2,
+                        boxes[:, 2],
+                        boxes[:, 3],
+                    )
+                ).tolist()
+
+                # 4. Suppression des doublons (Non-Maximum Suppression)
+                indices = cv2.dnn.NMSBoxes(
+                    boxes_cv2, scores, score_threshold=0.45, nms_threshold=0.45
+                )
+
+                if len(indices) > 0:
+                    indices = np.array(indices).flatten()
+                    kept_boxes = boxes[indices]
+                    kept_coeffs = mask_coeffs[indices]
+
+                    # 5. RECONSTRUCTION DES SILHOUETTES (Magie Numpy)
+                    # Produit matriciel : Coefficients (N, 32) * Protos (32, 65536) -> Masques (N, 65536)
+                    protos_flat = protos.reshape(32, -1)
+                    masks = kept_coeffs @ protos_flat
+
+                    # Fonction Sigmoid pour obtenir des probabilités entre 0 et 1
+                    masks = 1.0 / (1.0 + np.exp(-np.clip(masks, -100, 100)))
+                    masks = masks.reshape(-1, protos.shape[1], protos.shape[2])
+
+                    # 6. Redimensionnement et assemblage des silhouettes
+                    combined_mask = np.zeros((1024, 1024), dtype=np.uint8)
+
+                    for i in range(len(indices)):
+                        mask = masks[i]
+                        mask_resized = cv2.resize(
+                            mask, (1024, 1024), interpolation=cv2.INTER_LINEAR
+                        )
+
+                        # Cadrage strict sur la boîte englobante de la personne
+                        cx, cy, bw, bh = kept_boxes[i]
+                        x1 = max(0, int(cx - bw / 2))
+                        y1 = max(0, int(cy - bh / 2))
+                        x2 = min(1024, int(cx + bw / 2))
+                        y2 = min(1024, int(cy + bh / 2))
+
+                        # Seuil de binarisation du masque
+                        local_mask = (mask_resized[y1:y2, x1:x2] > 0.5).astype(
+                            np.uint8
+                        ) * 255
+                        combined_mask[y1:y2, x1:x2] = cv2.bitwise_or(
+                            combined_mask[y1:y2, x1:x2], local_mask
+                        )
+
+                    # 7. Adaptation à la taille réelle de la vidéo et lissage des contours
+                    final_mask = cv2.resize(
+                        combined_mask, (width, height), interpolation=cv2.INTER_LINEAR
+                    )
+                    final_mask = cv2.dilate(final_mask, kernel_dilate, iterations=1)
+                    final_mask = cv2.GaussianBlur(final_mask, (15, 15), 0)
+
+                    # 8. Fusion finale (Image d'origine + Zone floutée selon la silhouette)
+                    alpha = (final_mask / 255.0)[:, :, np.newaxis]
+                    final_frame = (
+                        alpha * anonymized_bg + (1.0 - alpha) * frame
+                    ).astype(np.uint8)
 
             out.write(final_frame)
             current_frame += 1
